@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# test git is working in cwd
+# git || exit 1
+
+# declare a wrapper function for git
+git() {
+   command git "$@" || exit 1
+}
+
+BRANCH=`git show-ref | grep $(git show-ref -s -- HEAD) | sed 's|.*/\(.*\)|\1|' | grep -v HEAD | sort | uniq`
+HASH=`git rev-parse $BRANCH`
+PREV=`git rev-list --topo-order HEAD..$HASH | tail -1`
+echo $BRANCH
+echo $HASH
+echo $PREV
+git checkout $PREV

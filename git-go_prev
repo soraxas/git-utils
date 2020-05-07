@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# test git is working in cwd
+# git log || exit 1
+
+# declare a wrapper function for git
+git() {
+   command git "$@" || exit 1
+}
+
+git checkout HEAD~

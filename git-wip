@@ -1,1 +1,67 @@
-‎‎​
+#!/bin/sh
+
+#set -x
+
+WIP_TOKEN="[FIXME]: local wip DIRTY files commit (to be reverted)"
+WIP_HAS_STAGED_TOKEN="[FIXME]: local wip STAGED files commit (to be reverted)"
+
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+MAGENTA='\033[0;35m'
+NC='\033[0m'
+
+say_action() {
+  printf "$MAGENTA>> ${@}${NC}\n"
+}
+
+say() {
+  printf "$GREEN>> ${@}${NC}\n"
+}
+
+failed() {
+  printf "$RED>> Something went wrong. ${@}${NC}\n"
+  exit 1
+}
+
+check_has_wip() {
+    git update-index --refresh
+    git diff-index --quiet HEAD --
+}
+
+check_staged() {
+    x="$(git diff --name-only --cached)"
+    if [ "$x" != "" ]; then
+      say_action "There are staged files, adding WIP staged files commit"
+      # non-empty means there is files to be staged.
+      git commit --no-verify -m "${WIP_HAS_STAGED_TOKEN}" || failed
+    fi
+}
+
+# https://stackoverflow.com/questions/45352246/how-to-switch-and-save-without-commit-in-git
+main() { 
+    x="$(git log -1 --pretty=%B)"
+    if [ "$x" = "${WIP_TOKEN}" ]; then
+        say_action "Undoing WIP commit"
+        git reset --soft HEAD^ || failed
+        git reset
+    x="$(git log -1 --pretty=%B)"
+    if [ "$x" = "${WIP_HAS_STAGED_TOKEN}" ]; then
+        say_action "Undoing staged commit"
+        git reset --soft HEAD^ || failed
+    fi
+    else 
+        if [ "$(check_has_wip)" = "" ]; then
+          # nothing to add to wip! :)
+          say "No WIP work found, exiting."
+          exit 0
+        fi
+        check_staged 
+        say_action "Adding WIP commit with all files"
+        git add -u || failed
+        git commit --no-verify -am "${WIP_TOKEN}" || failed
+    fi
+    say "Done"
+}
+
+
+main
