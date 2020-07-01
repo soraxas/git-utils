@@ -39,30 +39,34 @@ check_staged() {
     fi
 }
 
+last_commit_has_wip_token() {
+  x="$(git log -1 --pretty=%B)"
+  [ "$x" = "${WIP_TOKEN}" ]
+}
+
 # https://stackoverflow.com/questions/45352246/how-to-switch-and-save-without-commit-in-git
 main() { 
-    x="$(git log -1 --pretty=%B)"
-    if [ "$x" = "${WIP_TOKEN}" ]; then
-        say_action "Undoing WIP commit"
-        git reset --soft HEAD^ || failed
-        git reset
+  if last_commit_has_wip_token; then
+    say_action "Undoing WIP commit"
+    git reset --soft HEAD^ || failed
+    git reset
     x="$(git log -1 --pretty=%B)"
     if [ "$x" = "${WIP_HAS_STAGED_TOKEN}" ]; then
-        say_action "Undoing staged commit"
-        git reset --soft HEAD^ || failed
+      say_action "Undoing staged commit"
+      git reset --soft HEAD^ || failed
     fi
-    else 
-        if [ "$(check_has_wip)" = "" ]; then
-          # nothing to add to wip! :)
-          say "No WIP work found, exiting."
-          exit 0
-        fi
-        check_staged 
-        say_action "Adding WIP commit with all files"
-        git add -u || failed
-        git commit --no-verify -am "${WIP_TOKEN}" || failed
+  else 
+    if [ "$(check_has_wip)" = "" ]; then
+      # nothing to add to wip! :)
+      say "No WIP work found, exiting."
+      exit 0
     fi
-    say "Done"
+    check_staged 
+    say_action "Adding WIP commit with all files"
+    git add -u || failed
+    git commit --no-verify -am "${WIP_TOKEN}" || failed
+  fi
+  say "Done"
 }
 
 for arg; do
@@ -73,6 +77,10 @@ for arg; do
 Create a revertible wip commit
 
 Usage: git wip [BRANCH]
+
+Options:    
+      --help        display this help message and exit
+      --version     output version information and exit    
 
 Quick summary:
   If there is a wip commit, it will revert it.
@@ -86,8 +94,11 @@ achieved by checking for a wip token in commit message.
 It also takes special care on staged file and revert them in a staged
 status accordingly.
 
-[BRANCH]: If given, it will switch to BRANCH after wip action was
-executed successfully.
+[BRANCH]:
+  If given, it will switch to BRANCH after wip action was
+  executed successfully.
+  In addition, it will reverts wip commit if there exists a wip commit in
+  the target branch.
 EOF
       exit
       ;;
@@ -109,6 +120,14 @@ EOF
   esac
 done
 
-# if [ -n "$1" ]; then
-#   # sw
-main
+if [ "$#" -gt 1 ]; then
+  $0 --help
+  exit 1
+fi
+
+if [ -n "$1" ]; then
+  main && git checkout "$1" -- || failed
+  last_commit_has_wip_token && main
+else
+  main
+fi
