@@ -2,6 +2,8 @@
 
 #set -x
 
+VERSION="v1.3"
+
 WIP_TOKEN="[FIXME]: local wip DIRTY files commit (to be reverted)"
 WIP_HAS_STAGED_TOKEN="[FIXME]: local wip STAGED files commit (to be reverted)"
 
@@ -63,5 +65,50 @@ main() {
     say "Done"
 }
 
+for arg; do
+  shift
+  case "$arg" in
+    --help)
+      cat << EOF
+Create a revertible wip commit
 
+Usage: git wip [BRANCH]
+
+Quick summary:
+  If there is a wip commit, it will revert it.
+  Otherwise, it will put dirty state into a wip commit.
+
+Wip stands for work-in-progress. When executed, this script will first
+check if there exists a wip commit in git log. If it does, it will revert
+the commit and put the repo back into previous dirty state. This is 
+achieved by checking for a wip token in commit message.
+
+It also takes special care on staged file and revert them in a staged
+status accordingly.
+
+[BRANCH]: If given, it will switch to BRANCH after wip action was
+executed successfully.
+EOF
+      exit
+      ;;
+    --version)
+      cat << EOF
+git-wip ${VERSION}
+
+Copyright (C) 2020 Tin Lai
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Written by Tin Lai (@soraxas)
+EOF
+      exit
+      ;;
+    *)
+      # set back any unused args
+      set -- "$@" "$arg"
+  esac
+done
+
+# if [ -n "$1" ]; then
+#   # sw
 main
