@@ -7,6 +7,13 @@ git-wip \- manual page for git-wip v1.3
 \fI\,wip \/\fR[\fI\,BRANCH\/\fR]
 .SH DESCRIPTION
 Create a revertible wip commit
+.SH OPTIONS
+.TP
+\fB\-\-help\fR
+display this help message and exit
+.TP
+\fB\-\-version\fR
+output version information and exit
 .SS "Quick summary:"
 .IP
 If there is a wip commit, it will revert it.
@@ -19,9 +26,12 @@ achieved by checking for a wip token in commit message.
 .PP
 It also takes special care on staged file and revert them in a staged
 status accordingly.
-.PP
-[BRANCH]: If given, it will switch to BRANCH after wip action was
+.SS "[BRANCH]:"
+.IP
+If given, it will switch to BRANCH after wip action was
 executed successfully.
+In addition, it will reverts wip commit if there exists a wip commit in
+the target branch.
 .SH AUTHOR
 Written by Tin Lai (@soraxas)
 .SH COPYRIGHT

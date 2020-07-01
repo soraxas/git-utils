@@ -1,0 +1,1 @@
+complete -c git -x -n '__fish_git_using_command wip' -a '(__fish_git_branches)' -d 'BRANCH to switch to after action'
