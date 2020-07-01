@@ -2,7 +2,7 @@
 
 #set -x
 
-VERSION="v1.3"
+VERSION="v1.5"
 
 WIP_TOKEN="[FIXME]: local wip DIRTY files commit (to be reverted)"
 WIP_HAS_STAGED_TOKEN="[FIXME]: local wip STAGED files commit (to be reverted)"
@@ -44,8 +44,7 @@ last_commit_has_wip_token() {
   [ "$x" = "${WIP_TOKEN}" ]
 }
 
-# https://stackoverflow.com/questions/45352246/how-to-switch-and-save-without-commit-in-git
-main() { 
+revert_wip_commit() {
   if last_commit_has_wip_token; then
     say_action "Undoing WIP commit"
     git reset --soft HEAD^ || failed
@@ -55,16 +54,34 @@ main() {
       say_action "Undoing staged commit"
       git reset --soft HEAD^ || failed
     fi
-  else 
-    if [ "$(check_has_wip)" = "" ]; then
-      # nothing to add to wip! :)
-      say "No WIP work found, exiting."
-      exit 0
+    return 0
+  fi
+  return 1
+}
+
+create_wip_commit() {
+  if [ "$(check_has_wip)" = "" ]; then
+    # nothing to add to wip! :)
+    say "No WIP work found, exiting."
+    exit 0
+  fi
+  check_staged 
+  say_action "Adding WIP commit with all files"
+  git add -u || failed
+  git commit --no-verify -am "${WIP_TOKEN}" || failed
+}
+
+# https://stackoverflow.com/questions/45352246/how-to-switch-and-save-without-commit-in-git
+main() {
+  if [ -z "$1" ]; then
+    # default behaviour
+    if ! revert_wip_commit; then
+      create_wip_commit
     fi
-    check_staged 
-    say_action "Adding WIP commit with all files"
-    git add -u || failed
-    git commit --no-verify -am "${WIP_TOKEN}" || failed
+  else
+    [ "$1" = "CREATE" ] \
+      && create_wip_commit \
+      || revert_wip_commit
   fi
   say "Done"
 }
@@ -72,19 +89,36 @@ main() {
 for arg; do
   shift
   case "$arg" in
+    --create)
+      [ -n "$ACTION" ] && echo "--create and --revert are mutually exclusive" && exit 1
+      ACTION="CREATE"
+      ;;
+    --revert)
+      [ -n "$ACTION" ] && echo "--create and --revert are mutually exclusive" && exit 1
+      ACTION="REVERT"
+      ;;
     --help)
       cat << EOF
 Create a revertible wip commit
 
-Usage: git wip [BRANCH]
+Usage: git wip [BRANCH] [-c|--create] [-r|--revert]
 
 Options:    
+      -c, --create  enforce to create a wip commit, rather than the default
+                    behaviour of intelligently create/revert without user input.
+                    This flag has no effect if BRANCH is given, as it will always
+                    be creating a wip commit before switching branch, and always
+                    reverting a wip commit afterwards.
+      -r, --revert  enforce to revert a wip commit, otherwise same as above
+
       --help        display this help message and exit
       --version     output version information and exit    
 
 Quick summary:
   If there is a wip commit, it will revert it.
   Otherwise, it will put dirty state into a wip commit.
+  If --create or --revert is given, it will not try to intelligently make
+  this decision for the user. The two flags are mutually exclusive.
 
 Wip stands for work-in-progress. When executed, this script will first
 check if there exists a wip commit in git log. If it does, it will revert
@@ -126,8 +160,9 @@ if [ "$#" -gt 1 ]; then
 fi
 
 if [ -n "$1" ]; then
-  main && git checkout "$1" -- || failed
-  last_commit_has_wip_token && main
+  # if we are switching branch, the wip action must be creating a wip commit
+  main "CREATE" && git checkout "$1" -- || failed
+  last_commit_has_wip_token && main "REVERT"
 else
-  main
+  main "$ACTION"
 fi
