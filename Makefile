@@ -17,6 +17,11 @@ man/man1/%.1: %
 	@ mkdir -p "$(dir $@)"
 	echo $(MAN_SEE_ALSO_GIT) | $(HELP2MAN) $(MAN_H2M_FLAGS) "$<" --output="$@" --include=/dev/stdin
 
+# update license notice
+$(TARGET): LICENSE
+	copyright_authors="$(shell awk '/^Copyright \(c\)/' "$<")" && \
+	sed -i "s/^Copyright (c).*$$/$$copyright_authors/" "$@"
+
 clean:
 	rm -rf build/
 	rm -rf man/
