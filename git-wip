@@ -62,8 +62,8 @@ revert_wip_commit() {
 create_wip_commit() {
   if [ "$(check_has_wip)" = "" ]; then
     # nothing to add to wip! :)
-    say "No WIP work found, exiting."
-    exit 0
+    say "No WIP work found."
+    return 1
   fi
   check_staged 
   say_action "Adding WIP commit with all files"
