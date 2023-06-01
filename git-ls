@@ -1,0 +1,91 @@
+#!/bin/sh
+
+set -u
+
+# colors definitions
+blue="$(tput setaf 30)"
+normal="$(tput setaf 255)"
+# black_bg="$(tput setab 233)"
+brown="$(tput setaf 230)"
+# brown="$(tput setaf 237)"
+bold="$(tput bold)"
+
+reset="$(tput sgr0)"
+
+# format definitions
+filename_format="$normal"
+dirname_format="$reset$blue$bold"
+file_numbers_format="$brown"
+
+ls_git_file() {
+  fname="$1"
+  MAXLEN="${3:-${#fname}}"
+  i="${2:-""}"
+  space_for_file_numbers="${4:-""}"
+
+  if [ -n "$i" ]; then
+    printf '%s' "$reset" "$file_numbers_format"
+    printf "%${space_for_file_numbers}d " "$i"
+  else
+    printf '%s' "$reset" "$file_numbers_format" '> '
+  fi
+
+  str="$(git -c color.ui=always log -1 --pretty=format:"%<(21)%C(green)%cr%C(white) | %C(cyan)%h%C(white) | %<(15)%C(yellow)%cn%C(white) | %s" -- "$fname")"
+  [ -z "$str" ] && str="Not a git-tracked file"
+  if [ -d "$fname" ]; then
+    _format="$dirname_format"
+    f="$fname/"
+  else
+    _format="$filename_format"
+  fi
+
+  printf "${_format}%-${MAXLEN}s$reset" "$fname"
+
+  printf " -- %s\n" "$str"
+}
+
+ls_git_dir() (
+  cd "$1" || return
+
+  FILES="$(git ls-tree --name-only HEAD .)"
+  [ "$?" -eq 0 ] || return
+  MAXLEN=0
+  IFS="$(printf "\n\b")"
+  counter=0
+  for f in $FILES; do
+      if [ ${#f} -gt $MAXLEN ]; then
+          MAXLEN=${#f};
+      fi
+      counter=$((counter + 1))
+  done
+  MAXLEN=$((MAXLEN+1)) # Consider slash at the end of dirname
+
+  number_of_files=$counter
+  space_for_file_numbers=${#number_of_files}
+
+  i=1
+  for f in $FILES; do
+    ls_git_file "$f" "$i" "$MAXLEN" "$space_for_file_numbers"
+    # file numbers
+    i=$((i + 1))
+  done
+
+  printf '%s' "$(tput sgr 0)"
+)
+
+bold=$(tput bold)
+reset=$(tput sgr0)
+
+for input in "${@:-$PWD}"
+do
+  if [ ! -e "$input" ]; then
+    echo "'$input' doesn't exist"
+  elif [ -d "$input" ]; then
+    echo "ls $bold$input/$reset"
+    ls_git_dir "$input"
+  elif [ -f "$input" ]; then
+    ls_git_file "$input"
+  else
+    echo "$input is not a directory"
+  fi
+done
